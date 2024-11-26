@@ -5,19 +5,19 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 import importlib
 
-# 加载配置
-config_file = 'config.train_my_data'  # 修改为您的配置文件路径
+# Load the configuration file
+config_file = 'config.train_my_data'  # Modify this path to your configuration file
 config = importlib.import_module(config_file)
 
-# 设置设备
+# Set the device
 device = 'mps' if torch.backends.mps.is_available() else 'cuda' if torch.cuda.is_available() else 'cpu'
 print(f"Using device: {device}")
 
-# 自定义数据集
+# Custom dataset class
 class BinaryDataset(Dataset):
     def __init__(self, data_file, block_size):
         with open(data_file, 'rb') as f:
-            self.data = np.fromfile(f, dtype=np.uint16)  # 加载二进制文件
+            self.data = np.fromfile(f, dtype=np.uint16)  # Load binary file
         self.block_size = block_size
 
     def __len__(self):
@@ -28,7 +28,7 @@ class BinaryDataset(Dataset):
         y = torch.tensor(self.data[idx + 1:idx + 1 + self.block_size], dtype=torch.long)
         return x, y
 
-# 加载数据集
+# Load datasets
 def load_data():
     print("Loading data...")
     train_dataset = BinaryDataset(os.path.join('data/my_data', 'train.bin'), config.block_size)
@@ -41,7 +41,7 @@ def load_data():
     print(f"Loaded test dataset with {len(test_dataset)} samples.")
     return train_loader, test_loader
 
-# 定义模型
+# Define the model
 class GPTLanguageModel(torch.nn.Module):
     def __init__(self, config):
         super().__init__()
@@ -64,7 +64,7 @@ class GPTLanguageModel(torch.nn.Module):
             return logits, loss
         return logits
 
-# 训练
+# Training function
 def train(model, train_loader, optimizer, scheduler, config):
     model.train()
     running_loss = 0
@@ -79,7 +79,7 @@ def train(model, train_loader, optimizer, scheduler, config):
             print(f"Batch {batch_idx}: Loss = {loss.item():.4f}")
     return running_loss / len(train_loader)
 
-# 验证
+# Evaluation function
 def evaluate(model, test_loader, config):
     model.eval()
     running_loss = 0
@@ -90,26 +90,26 @@ def evaluate(model, test_loader, config):
             running_loss += loss.item()
     return running_loss / len(test_loader)
 
-# 主函数
+# Main function
 def main():
-    # 加载数据
+    # Load the data
     train_loader, test_loader = load_data()
 
-    # 初始化模型
+    # Initialize the model
     model = GPTLanguageModel(config).to(device)
 
-    # 优化器和学习率调度器
+    # Define the optimizer and learning rate scheduler
     optimizer = torch.optim.AdamW(model.parameters(), lr=config.learning_rate)
     scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=1000, gamma=0.1)
 
-    # 训练循环
+    # Training loop
     for epoch in range(config.max_iters):
         print(f"Epoch {epoch + 1}/{config.max_iters}")
         train_loss = train(model, train_loader, optimizer, scheduler, config)
         val_loss = evaluate(model, test_loader, config)
         print(f"Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
 
-        # 保存模型
+        # Save the model
         if epoch % config.eval_interval == 0:
             checkpoint_path = os.path.join(config.out_dir, f"model_epoch{epoch}.pth")
             torch.save(model.state_dict(), checkpoint_path)
@@ -117,3 +117,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
